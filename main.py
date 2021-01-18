@@ -4,9 +4,9 @@ Created on Jan 3, 2021
 @author: Miguel
 '''
 
-from src_taurus_runner.tsources import InteractionArgs, WaveFunctionArgs, \
+from src_taurus_runner.t_sources import InteractionArgs, WaveFunctionArgs, \
     ParticleNumberArgs, IterationArgs, ConstrainsArgs, InputSource, _Data
-from src_taurus_runner.trunner import IsotopeRunner, ConstraintsRunner
+from src_taurus_runner.t_runner import IsotopeRunner, ConstraintsRunner
 
 
 if __name__ == '__main__':

@@ -8,7 +8,7 @@ import os
 import subprocess
 import shutil
 
-from src_taurus_runner.tsources import InputSource, InteractionArgs, \
+from src_taurus_runner.t_sources import InputSource, InteractionArgs, \
     WaveFunctionArgs, IterationArgs, ConstrainsArgs, ParticleNumberArgs, Result
 
 class RunnerException(BaseException):
