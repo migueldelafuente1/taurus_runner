@@ -138,8 +138,8 @@ class _Runner(object):
         #                              stderr=subprocess.STDOUT)
         
         if not os.path.exists(self.output_filename):
-            raise Exception("Problem with the f90 program, it has not produced the"
-                            "output file [{}]".format(self.output_filename))
+            raise Exception("Problem with the f90 program, it has not produced "
+                            "the output file [{}]".format(self.output_filename))
         
         # get data before move
         self._getAllData()
@@ -147,7 +147,7 @@ class _Runner(object):
         self._moveAllResultsIntoFolder()
 #         shutil.copy(self.OUTPUT_FILENAME, self.OUTPUT_DIRECTORY)
         
-        
+    
     def _moveAllResultsIntoFolder(self):
         
         #TODO: change to move after debug
@@ -160,7 +160,7 @@ class _Runner(object):
         
         for _file in Result.outputFilesEnum.members():
             shutil.copy(_file, aux_folder)
-            
+        
     
     def _getDataStorageDirectoryName(self):
         """
@@ -174,9 +174,46 @@ class _Runner(object):
         """
         raise RunnerException("Abstract method, implement me!")
         
+
+#===============================================================================
+# IMPLEMENTATION OF BASIC RUNNERS
+#===============================================================================
+
+class SingleRunner(_Runner):
+    
+    def __init__(self, Z, N, interaction, *arg, **kwargs):
+        
+        assert type(Z) is int, "Z is not <int>. Got [{}]".format(Z)
+        assert type(N) is int, "N is not <int>. Got [{}]".format(N)
+        
+        self.z = Z
+        self.n = N
+        self.interaction = interaction
+        
+        self.optional_args = kwargs
         
     
-
+    def runProcess(self):
+        
+        i_int   = InteractionArgs(interaction = self.interaction)
+        _args = {ParticleNumberArgs.Param.Z_active : self.z, 
+                 ParticleNumberArgs.Param.N_active : self.n}
+        i_pn    = ParticleNumberArgs(**_args)
+        i_wf    = WaveFunctionArgs()
+        i_iter  = IterationArgs()
+        i_const = ConstrainsArgs()
+            
+        self.input_source = InputSource(i_int, i_pn, i_wf, i_iter, i_const)
+        
+        _str = "z{}n{}".format(self.z, self.n)
+        self.output_filename = self.OUTPUT_FILENAME_TEMPLATE.format(_str)
+        
+        self._run()
+    
+    def _getDataStorageDirectoryName(self):
+        
+        return self.COMPLEMENTARY_FILES + "_z{}n{}".format(self.z, self._n)
+        
 class IsotopeRunner(_Runner):
     
     OUTPUT_DIRECTORY = "output_isotopes"
@@ -232,7 +269,7 @@ class IsotopeRunner(_Runner):
                 print(line_)
                 break
         
-        
+
     def _getDataStorageDirectoryName(self):
         
         return self.COMPLEMENTARY_FILES + "_z{}n{}".format(self.z, self._n)
@@ -241,13 +278,43 @@ class ConstraintsRunner(_Runner):
     
     OUTPUT_DIRECTORY = "output_constr"
     
-    def __init__(self, Z, N, interaction, constraints_dict, *arg, **kwargs):
-        """
-        Run one/several constraints (not nested).
+    """
+    Run one constraints with values are in list, fix other parameters with 
+    default values giving single numerical values for the constraint.
+    
+    :constraints_dict <dict> list of values to constraint for one/several
+                            constraints available in <ConstraintArgs>
+                            
+    When values are not lists, the parameters will be treated as a default
+    constraint setting and not be iterated. These defaults will be shared 
+    for all list/tuple groups of constrains
+    
+    If you pass several lists, the executions will not nest between them, and
+    those parameters iterated will have the ConstraintArgs default value.
+    
+    Example:
+        Execute the lists of Q20 values [-0.1, 0.0, 0.1] for J_z = 0.5 and
+        Q10 = 1.0 (Z, N, interaction given):
         
-        :constraints_dict <dict> list of values to constraint for one/several
-                                constraints available in <ConstraintArgs>
-        """
+        >>>
+        z, n, interaction = 2, 2, 'usbd'
+        _constrains = {
+            ConstrainsArgs.Param.constr_Q20 : [-0.1, 0.0, 0.1],
+            ConstrainsArgs.Param.constr_Jz  : 0.5,
+            ConstrainsArgs.Param.constr_Q10 : 1.0
+        }
+        
+        ir = ConstraintsRunner(z, n, interaction, _constrains)
+        ir.runProcess()
+        
+        ##
+        
+        The results will be in three folders named after the list constraint and
+        the other fixed arguments:
+        
+    """
+    
+    def __init__(self, Z, N, interaction, constraints_dict, *arg, **kwargs):
         
         assert type(Z) is int, "Z is not <int>. Got [{}]".format(Z)
         assert type(Z) is int, "N is not <int>. Got [{}]".format(N)
@@ -277,15 +344,33 @@ class ConstraintsRunner(_Runner):
         
         """
         _valid_prefixes = tuple(ConstrainsArgs.ParamConstrains.members())
+        _list_constraints = 0
         
         for constr_name, constr_values in self.constraints_dict.items():
             if not constr_name.startswith(_valid_prefixes):
                 raise RunnerException("Invalid constraint name. Got [{}]"
                                       .format(constr_name))
-            if not isinstance(constr_values, (list, tuple, float, int)):
+            if isinstance(constr_values, (list, tuple)):
+                if _list_constraints >= 1:
+                    print("WARNING: There is already [{}] list of constrain to "
+                          "iterate, multiple lists might mess with the default"
+                          "constraints between them. \nExecute them in another "
+                          "runner instance".format(_list_constraints))
+                _list_constraints += 1
+            elif isinstance(constr_values, (float, int)):
+                pass
+            else:
                 raise RunnerException("Invalid constraint value types. Got[{}]"
                                       .format(constr_values))
         
+        if _list_constraints == 0:
+            # last constraint (single value) given will be set as a list.
+            print("WARNING: No list for constraint iteration was given, the "
+                  "runner will define the last parameter [{}] as a dummy list "
+                  "for execution. \n >> Use SingleRunner() to execute a simple "
+                  "calculation with any single constraint given."
+                  .format(constr_name))
+            self.constraints_dict[constr_name] = [constr_values]
     
     def runProcess(self):
         

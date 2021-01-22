@@ -27,6 +27,10 @@ class Enum(object):
 class DataException(BaseException):
     pass
 
+class InputArgumentException(DataException):
+    """ Exception for invalid/missing keyword arguments for _Data subclasses """
+    pass
+
 class _Data(object):
     
     class Param(Enum):
@@ -58,11 +62,59 @@ class _Data(object):
         return super(_Data, cls).__new__(cls)
     
     
-    def __init__(self, *args, **kwargs):
+#     def __init__(self, *args, **kwargs):
+#         raise DataException("Abstract method, implement me!")
+    
+    def __init__(self, **kwargs):
+        """
+        Define parameters, set in __setDefaultAttributes the mandatory arguments
+        for the class implementation and the default values.
+        """
+        ## check valid names for given Parameters
+        kwargs_aux = self._validateGivenParameters(kwargs)
+        
+        self._arguments = kwargs_aux
+        self._setDefaultAttributes()
+        self._setGivenParameters()
+    
+    def _validateGivenParameters(self, kwargs):
+        """ 
+        Check valid names for given Parameters, if they do not belong to 
+        this class, remove it from the current dictionary.
+        
+        (that allow to implement all arguments in a single dictionary and pass 
+        it to every _Data subclass)
+        """
+        kwargs_aux = {}
+        
+        for arg in kwargs:
+            if arg not in self.Param.members():
+                # ignore the argument
+                continue
+                #raise InputArgumentException
+#                 print("Not a valid <{}> parameter: [{}]"
+#                     .format(self.__class__.__name__, arg))
+            else:
+                kwargs_aux[arg] = kwargs.get(arg)
+        
+        return kwargs_aux
+    
+    def _setDefaultAttributes(self):
+        """
+        Define mandatory arguments to be given and the default values. 
+        """
         raise DataException("Abstract method, implement me!")
+        
+    def _setGivenParameters(self):
+        """
+        Iterate the given values, setattr method mediate by property setter in
+        case those arguments require process getting.
+        """        
+        for attr, val in self._arguments.items():
+            setattr(self, attr, val)
     
     def getScientificFormat(self, value, digits=2):
-        """return the number in scientific format"""
+        """ Return the number in scientific format. """
         _templ = "{:." + str(digits) + "e}"
         return _templ.format(value)
 
@@ -97,20 +149,40 @@ class InteractionArgs(_Data):
         No. of MPI proc per H team    {n_MPI_proc_per_H_team}
     """
     
-    def __init__(self, interacion):
+#     def __init__(self, **kwargs):
+#         
+#         self._arguments = kwargs
+#         self.__setDefaultAttributes()
+#         self._setGivenParameters(kwargs)
+#     
+#     
+#         self.__COM_correction = False
+#         self.__read_reduced_Hamiltonian = False
+#         self.__n_MPI_proc_per_H_team = False
+    
+    def _setDefaultAttributes(self):
         
-        assert isinstance(interacion, str), "interaction name must be string"
-        # TODO: search valid values (put in property setter)
+        if not self.Param.interaction in self._arguments:
+            raise InputArgumentException("Interaction must be given.")
         
-        self.interaction = interacion
+        self.__interaction = self._arguments.get(self.Param.interaction)
         self.__COM_correction = False
         self.__read_reduced_Hamiltonian = False
         self.__n_MPI_proc_per_H_team = False
     
     @property
+    def interaction(self):
+        return self.__interaction
+    @interaction.setter
+    def interaction(self, value):
+        if not isinstance(value, str):
+            raise InputArgumentException("interaction name must be string")
+        # TODO: search valid values (put in property setter)
+        self.__interaction = value
+    
+    @property
     def COM_correction(self):
         return self.__COM_correction * 1
-    
     @COM_correction.setter
     def COM_correction(self, value):
         self.__COM_correction = value
@@ -118,7 +190,6 @@ class InteractionArgs(_Data):
     @property
     def read_reduced_Hamiltonian(self):
         return self.__read_reduced_Hamiltonian * 1
-    
     @read_reduced_Hamiltonian.setter
     def read_reduced_Hamiltonian(self, value):
         self.__read_reduced_Hamiltonian = value
@@ -126,7 +197,6 @@ class InteractionArgs(_Data):
     @property
     def n_MPI_proc_per_H_team(self):
         return self.__n_MPI_proc_per_H_team * 1
-    
     @n_MPI_proc_per_H_team.setter
     def n_MPI_proc_per_H_team(self, value):
         self.__n_MPI_proc_per_H_team = value
@@ -158,24 +228,36 @@ class ParticleNumberArgs(_Data):
         No. of gauge angles neutrons  {gauge_angles_n}
     """
     
-    def __init__(self, Z, N):
+#     def __init__(self, Z, N):
+#         
+#        
+#         
+#         
+#         self.__Z_active = Z
+#         self.__N_active = N
+#         self.__gauge_angles_p = 1
+#         self.__gauge_angles_n = 1
+    
+    def _setDefaultAttributes(self):
+        if not self.Param.Z_active in self._arguments:
+            raise InputArgumentException("Z_active must be given.")
+        if not self.Param.N_active in self._arguments:
+            raise InputArgumentException("N_active must be given.")
         
-        if (not (isinstance(Z, int) and  isinstance(Z, int))
-            or (Z < 0 or N < 0)):
-            raise  DataException("Z:[{}], N:[{}] must be non-negative integers"
-                             .format(Z, N))
-
-        
-        self.__Z_active = Z
-        self.__N_active = N
+        self.__Z_active = self._arguments.get(self.Param.Z_active)
+        self.__N_active = self._arguments.get(self.Param.N_active)
         self.__gauge_angles_p = 1
         self.__gauge_angles_n = 1
+    
     
     @property
     def Z_active(self):
         return self.__Z_active
     @Z_active.setter
     def Z_active(self, value):
+        if not (isinstance(value, int) or (value < 0)):
+            raise InputArgumentException("Z:[{}] must be non-negative integer"
+                                         .format(value))
         self.__Z_active = value
         
     @property
@@ -183,7 +265,30 @@ class ParticleNumberArgs(_Data):
         return self.__N_active
     @N_active.setter
     def N_active(self, value):
+        if not (isinstance(value, int) or (value < 0)):
+            raise InputArgumentException("N:[{}] must be non-negative integer"
+                                         .format(value))
         self.__N_active = value
+    
+    @property
+    def gauge_angles_p(self):
+        return self.__gauge_angles_p
+    @gauge_angles_p.setter
+    def gauge_angles_p(self, value):
+        if not (isinstance(value, int) or (value <= 0)):
+            raise InputArgumentException("Proton gauge angles [{}] must be "
+                                         "positive integer".format(value))
+        self.__gauge_angles_p = value
+    
+    @property
+    def gauge_angles_n(self):
+        return self.__gauge_angles_n
+    @gauge_angles_n.setter
+    def gauge_angles_n(self, value):
+        if not (isinstance(value, int) or (value <= 0)):
+            raise InputArgumentException("Neutron gauge angles [{}] must be "
+                                         "positive integer".format(value))
+        self.__gauge_angles_n = value
     
     
     def __str__(self):
@@ -217,14 +322,24 @@ class WaveFunctionArgs(_Data):
         Include all empty sp states   {include_empty_sp_states}
     """
     
-    def __init__(self, seed=0):
+#     def __init__(self, seed=0):
+#         
+#         self.seed_type = seed
+#         self.blocking_QP = 0
+#         self.symmetry_simplifications = 0
+#         self.wf_file_as_text = 0
+#         self.__cuttoff_occ_sp_states = 0.00e-00
+#         self.include_empty_sp_states = 0
+    
+    def _setDefaultAttributes(self):
         
-        self.seed_type = seed
+        self.seed_type = 0
         self.blocking_QP = 0
         self.symmetry_simplifications = 0
         self.wf_file_as_text = 0
         self.__cuttoff_occ_sp_states = 0.00e-00
         self.include_empty_sp_states = 0
+        
         
     @property
     def cuttoff_occ_sp_states(self):
@@ -268,17 +383,31 @@ class IterationArgs(_Data):
         Tolerance for gradient        {grad_tol}
     """
     
-    def __init__(self, iter_max=300):
+#     def __init__(self, iter_max=300):
+#         
+#         assert iter_max > 0,  "iter_max:[{}] must be positive".format(iter_max)
+    
+    def _setDefaultAttributes(self):
         
-        assert iter_max > 0,  "iter_max:[{}] must be positive".format(iter_max)
-        
-        self.iter_max   = iter_max
+        self.__iter_max   = 300
         self.step_intermediate = 0
         self.log_prompt = 0
         self.grad_type  = 1
         self.__grad_eta = 0.1
         self.__grad_mu  = 0.3
         self.__grad_tol = 0.0001
+    
+    
+    @property
+    def iter_max(self):
+        """return the number in scientific format"""
+        return self.__iter_max
+    @iter_max.setter
+    def iter_max(self, value):
+        if value <= 0:
+            raise InputArgumentException("iter_max:[{}] must be positive"
+                                         .format(value))
+        self.__iter_max = value
     
     @property
     def grad_eta(self):
@@ -414,11 +543,24 @@ class ConstrainsArgs(_Data):
 #         
 #         ## constaint pair
     
-    def __init__(self):
+#     def __init__(self):
+#         
+#         self.constraint_NZ = 1
+#         self.constraint_beta_lm = 2
+#         self.pair_coupling_scheme = 1
+#         self.__constraint_tol = 1.000e-4
+#         
+#         _value_params = tuple(self.ParamConstrains.members())
+#         for constr_attr_ in self.Param.members():
+#             if not constr_attr_.startswith(_value_params):
+#                 continue
+#             setattr(self, constr_attr_, (False, 0.000))
+            
+    def _setDefaultAttributes(self):
         
-        self.constraint_NZ = 1
-        self.constraint_beta_lm = 2
-        self.pair_coupling_scheme = 1
+        self.__constraint_NZ = 1
+        self.__constraint_beta_lm = 2
+        self.__pair_coupling_scheme = 1
         self.__constraint_tol = 1.000e-4
         
         _value_params = tuple(self.ParamConstrains.members())
@@ -426,7 +568,40 @@ class ConstrainsArgs(_Data):
             if not constr_attr_.startswith(_value_params):
                 continue
             setattr(self, constr_attr_, (False, 0.000))
+        
+    @property
+    def constraint_NZ(self):
+        return self.__constraint_NZ * 1
+    @constraint_NZ.setter
+    def constraint_NZ(self, value):
+        if value not in (0, 1, True, False):
+            raise InputArgumentException(
+                "'constraint_NZ' can only be 0(False) or 1(True)")
+        self.__constraint_NZ = value
+        
+    @property
+    def constraint_beta_lm(self):
+        return self.__constraint_beta_lm
+    @constraint_beta_lm.setter
+    def constraint_beta_lm(self, value):
+        if value not in (0, 1, 2):
+            raise InputArgumentException("'constraint_beta_lm' can only be: "
+            "0 [constrains applied to Q_lm directly], "
+            "1 [constrains applied to beta_lm dimensionless parameter] or "
+            "2 [1) but applied to triaxial parameters l=20(beta) and 22(gamma)]"
+            )
+        self.__constraint_beta_lm = value
     
+    @property
+    def pair_coupling_scheme(self):
+        return self.__pair_coupling_scheme * 1
+    @pair_coupling_scheme.setter
+    def pair_coupling_scheme(self, value):
+        if value not in (0, 1, True, False):
+            raise InputArgumentException(
+                "'pair_coupling_scheme' can only be 0('agnostic') or 1(seniority)")
+        self.__pair_coupling_scheme = value
+        
     @property
     def constraint_tol(self):
         """return the number in scientific format"""
@@ -434,6 +609,20 @@ class ConstrainsArgs(_Data):
     @constraint_tol.setter
     def constraint_tol(self, value):
         self.__constraint_tol = value
+    
+    def _setGivenParameters(self):
+        """ Overwrite method to set the specific constraints"""
+        _constrains = set()
+        for arg, value in self._arguments.items():
+            if arg.startswith(tuple(self.ParamConstrains.members())):
+                self.setConstraint(arg, value)
+                _constrains.add(arg)
+        
+        for arg in _constrains:
+            del self._arguments[arg]
+        
+        ## set the arguments which are not constraint values.
+        super()._setGivenParameters()
     
     def setConstraint(self, name, value):
         """ Constraint value setter """ 
@@ -457,7 +646,7 @@ class ConstrainsArgs(_Data):
             raise DataException("[{}] invalid constraint name".format(name))
         
         setattr(self, name, (False, 0.0))
-        
+    
     
     def __str__(self):
         """ Get the final string for input with current data"""
@@ -583,19 +772,3 @@ class InputSource():
             f.write(_str)
     
 
-#===============================================================================
-# OUTPUT RECOVER OF THE FILES
-#===============================================================================
-
-class Result():
-    
-    class outputFilesEnum(Enum):
-        occupation_numbers = 'occupation_numbers.dat'
-        canonical_basis    = 'canonicalbasis.dat'
-        eigenbasis_h       = 'eigenbasis_h.dat'
-        eigenbasis_H11     = 'eigenbasis_H11.dat'
-        final_wave_function     = 'final_wf.bin'
-        reduced_hamiltonian     = 'usdb.red'
-            
-    
-    
