@@ -7,26 +7,27 @@ Created on Jan 3, 2021
 from src_taurus_runner.t_sources import InteractionArgs, WaveFunctionArgs, \
     ParticleNumberArgs, IterationArgs, ConstrainsArgs, InputSource
 from src_taurus_runner.t_runner import IsotopeRunner, ConstraintsRunner
+from t_runner import SingleRunner
 
 
 if __name__ == '__main__':
     
-#     _args = {
-#         InteractionArgs.Param.interaction : 'usbd',
-#         InteractionArgs.Param.COM_correction : True, 
-#         InteractionArgs.Param.read_reduced_Hamiltonian : True
-#     }
-#     
-#     i1 = InteractionArgs(**_args)
-# #     i1 = InteractionArgs('usdb')
-#     i2 = WaveFunctionArgs()
-#     _args = {
-#         ParticleNumberArgs.Param.Z_active : 2,
-#         ParticleNumberArgs.Param.N_active : 2,
-#         ParticleNumberArgs.Param.gauge_angles_n : 5
-#     }
-#     
-#     i3 = ParticleNumberArgs(**_args)
+    _args = {
+        InteractionArgs.Param.interaction : 'usbd',
+        InteractionArgs.Param.COM_correction : True, 
+        InteractionArgs.Param.read_reduced_Hamiltonian : True
+    }
+     
+    i1 = InteractionArgs(**_args)
+#     i1 = InteractionArgs('usdb')
+    i2 = WaveFunctionArgs()
+    _args = {
+        ParticleNumberArgs.Param.Z_active : 2,
+        ParticleNumberArgs.Param.N_active : 2,
+        ParticleNumberArgs.Param.gauge_angles_n : 5
+    }
+     
+    i3 = ParticleNumberArgs(**_args)
     i4 = IterationArgs()
     
     _args = {
@@ -35,9 +36,13 @@ if __name__ == '__main__':
     }
     i5 = ConstrainsArgs(**_args)
     i5.setConstraint(ConstrainsArgs.Param.constr_Q10, -0.1)
-#     
-#     _input = InputSource(i1, i2, i3, i4, i5)
-#     _input.createInputFile()
+     
+    _input = InputSource(i1, i2, i3, i4, i5)
+    _input.createInputFile()
+    
+    ir = SingleRunner(2, 2, 'usdb')
+    ir.runProcess()
+
 #     
 #     z = 0
 #     n_list = [i for i in range(0, 5, 2)]

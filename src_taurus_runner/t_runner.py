@@ -9,7 +9,8 @@ import subprocess
 import shutil
 
 from src_taurus_runner.t_sources import InputSource, InteractionArgs, \
-    WaveFunctionArgs, IterationArgs, ConstrainsArgs, ParticleNumberArgs, Result
+    WaveFunctionArgs, IterationArgs, ConstrainsArgs, ParticleNumberArgs
+from t_result import Result
 
 class RunnerException(BaseException):
     pass
@@ -35,7 +36,6 @@ class _Runner(object):
         """
         Create a directory and manage all mandatory attributes 
         """
-        
         ## Mandatory attributes
         self.COMPLEMENTARY_FILES = self.OUTPUT_DIRECTORY+"/exe_files_"
         
@@ -47,7 +47,6 @@ class _Runner(object):
         _dir_name = self.OUTPUT_DIRECTORY
         self._current_folder_name = self.OUTPUT_DIRECTORY
         self._createFolder(_dir_name, new_calculation=True)
-#         _createFolder(_dir_name)
         
         return object.__new__(self)
     
@@ -73,6 +72,8 @@ class _Runner(object):
             print("Files to remove:", _files)
             if len(_files) > 0:
                 shutil.rmtree(folder_name)
+            else:
+                os.removedirs(folder_name)
         
         if ('/' in folder_name) or ('\\' in folder_name):
             os.makedirs(folder_name, exist_ok=True)
@@ -212,6 +213,13 @@ class SingleRunner(_Runner):
         self.output_filename = self.OUTPUT_FILENAME_TEMPLATE.format(_str)
         
         self._run()
+    
+    def _getAllData(self):
+        
+        _result = Result(self.output_filename)
+        
+        self.resuls[self.input_source] = _result
+        
     
     def _getDataStorageDirectoryName(self):
         
