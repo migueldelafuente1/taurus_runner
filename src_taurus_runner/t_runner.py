@@ -195,13 +195,16 @@ class SingleRunner(_Runner):
     
     def runProcess(self):
         
-        i_int   = InteractionArgs(interaction = self.interaction)
-        _args = {ParticleNumberArgs.Param.Z_active : self.z, 
-                 ParticleNumberArgs.Param.N_active : self.n}
+        _args = self.optional_args
+        _args[ParticleNumberArgs.Param.Z_active] = self.z 
+        _args[ParticleNumberArgs.Param.N_active] = self.n
+        _args[InteractionArgs.Param.interaction] = self.interaction
+        
+        i_int   = InteractionArgs(**_args)
         i_pn    = ParticleNumberArgs(**_args)
-        i_wf    = WaveFunctionArgs()
-        i_iter  = IterationArgs()
-        i_const = ConstrainsArgs()
+        i_wf    = WaveFunctionArgs(**_args)
+        i_iter  = IterationArgs(**_args)
+        i_const = ConstrainsArgs(**_args)
             
         self.input_source = InputSource(i_int, i_pn, i_wf, i_iter, i_const)
         
@@ -238,7 +241,7 @@ class IsotopeRunner(_Runner):
     
     def runProcess(self):
         
-        i_int   = InteractionArgs(self.interaction)
+        i_int   = InteractionArgs(interaction=self.interaction)
         i_wf    = WaveFunctionArgs()
         i_iter  = IterationArgs()
         i_const = ConstrainsArgs()
@@ -246,7 +249,7 @@ class IsotopeRunner(_Runner):
         for n in self.N_list:
             self._n = n
             
-            _str = "z{}n{}".format(self.z, self._n)
+            _str = "z{}n{}".format(Z_active= self.z, N_active= self._n)
             self.output_filename = self.OUTPUT_FILENAME_TEMPLATE.format(_str)
             
             i_pn = ParticleNumberArgs(self.z, n)
@@ -374,8 +377,8 @@ class ConstraintsRunner(_Runner):
     
     def runProcess(self):
         
-        i_int   = InteractionArgs(self.interaction)
-        i_pn    = ParticleNumberArgs(self.z, self.n)
+        i_int   = InteractionArgs(interaction= self.interaction)
+        i_pn    = ParticleNumberArgs(Z_active= self.z, N_active= self.n)
         i_wf    = WaveFunctionArgs()
         i_iter  = IterationArgs()
         i_const = ConstrainsArgs()
